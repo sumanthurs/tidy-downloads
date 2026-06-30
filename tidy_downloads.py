@@ -170,7 +170,12 @@ def passes_move_delay(path: Path, folder_cfg: dict, force: bool) -> bool:
     delay = folder_cfg.get("move_delay", {"mode": "none"})
     mode = delay.get("mode", "none")
     if mode == "grace":
-        return age_hours >= delay.get("hours", config.DESKTOP_GRACE_HOURS)
+        # Accept the grace period in hours and/or minutes.
+        grace_hours = delay.get("hours")
+        if grace_hours is None and "minutes" not in delay:
+            grace_hours = config.DESKTOP_GRACE_HOURS
+        grace_hours = (grace_hours or 0) + delay.get("minutes", 0) / 60
+        return age_hours >= grace_hours
     if mode == "next_day":
         return created_time(path).date() < datetime.now().date()
     return True

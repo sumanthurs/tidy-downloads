@@ -31,10 +31,11 @@ POLL_INTERVAL: float = 1.0
 # that never settles). The file is left in place.
 MAX_WAIT_SECONDS: int = 1800  # 30 minutes
 
-# How often the background re-scan runs. This is what makes the Desktop
-# "grace period" work: files that were too new to move earlier get picked up
-# on a later pass.
-RESCAN_INTERVAL_SECONDS: int = 1800  # 30 minutes
+# How often the background re-scan runs. This is what makes any "grace period"
+# work: files that were too new to move earlier get picked up on a later pass.
+# Keep this comfortably smaller than your shortest grace period so files get
+# filed soon after they become eligible (Downloads grace is 20 min, see below).
+RESCAN_INTERVAL_SECONDS: int = 300  # 5 minutes
 
 # Default grace period for the Desktop (see WATCHED_DIRS below): a freshly
 # saved file stays visible on the Desktop for this many hours before it is
@@ -107,7 +108,10 @@ MANAGED_TOP_LEVEL: set[str] = {
 WATCHED_DIRS: list[dict] = [
     {
         "path": HOME / "Downloads",
-        "move_delay": {"mode": "none"},
+        # Leave a freshly downloaded file in place for 20 minutes so the usual
+        # "download then immediately attach it somewhere" flow still finds it
+        # loose in Downloads. After that it's filed automatically.
+        "move_delay": {"mode": "grace", "minutes": 20},
         "date_buckets": "none",
         "categories": None,                 # organize all file types
         "ignore_recent_hours": 0,
