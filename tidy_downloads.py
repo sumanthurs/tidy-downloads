@@ -75,19 +75,25 @@ def created_time(path: Path) -> datetime:
 
 def should_process(path: Path, watched_root: Path) -> bool:
     """Filter out things we must never touch: hidden files, the log, our own
-    managed folders, and directories that aren't bundles."""
-    name = path.name
-    if name.startswith("."):
+    managed folders, and directories that aren't bundles.
+
+    Paths are resolved first (e.g. /tmp -> /private/tmp, and any other symlink)
+    so the "is this inside a managed folder?" check is reliable no matter how
+    the OS reports the event path. This is what stops us from re-processing the
+    files we ourselves just moved (a move fires an on_moved event whose
+    destination is inside a managed sub-folder)."""
+    if path.name.startswith("."):
         return False
-    if path == config.LOG_PATH:
+    rpath = Path(os.path.realpath(path))
+    root = Path(os.path.realpath(watched_root))
+    if rpath == Path(os.path.realpath(config.LOG_PATH)):
         return False
-    # Skip our managed top-level folders and anything inside them.
     try:
-        rel_first = path.relative_to(watched_root).parts[0]
-        if rel_first in config.MANAGED_TOP_LEVEL:
-            return False
+        rel_first = rpath.relative_to(root).parts[0]
     except (ValueError, IndexError):
-        pass
+        return False  # not directly under the watched folder -> ignore
+    if rel_first in config.MANAGED_TOP_LEVEL:
+        return False  # our own category folders (including our own moves)
     if path.is_dir() and path.suffix.lower() not in config.BUNDLE_EXTENSIONS:
         return False
     return True
@@ -191,7 +197,7 @@ class Worker:
         self._lock = threading.Lock()
 
     def process(self, path: Path, folder_cfg: dict, force: bool = False) -> None:
-        key = str(path)
+        key = os.path.realpath(path)
         with self._lock:
             if key in self._in_progress:
                 return
