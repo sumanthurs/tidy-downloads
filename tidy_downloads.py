@@ -34,6 +34,7 @@ from pathlib import Path
 import config
 import categorizer
 import cleanup
+import macos_meta
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -246,9 +247,20 @@ class Worker:
             return
 
         import shutil
+        # Capture the file's original "Date Added" before moving, since the
+        # move would otherwise reset it to now and make the filed file look
+        # like it arrived today (Finder groups by Date Added).
+        original_added = macos_meta.get_date_added(path)
         dest_dir.mkdir(parents=True, exist_ok=True)
         final = unique_destination(dest_dir, path.name)
         shutil.move(str(path), str(final))
+        # Restore Date Added (fall back to the file's creation time). Best
+        # effort — never let this fail the move.
+        desired = original_added
+        if not desired:
+            st = final.stat()
+            desired = getattr(st, "st_birthtime", None) or st.st_mtime
+        macos_meta.set_date_added(final, desired)
         log("MOVED", path.name, f"{label}{('(renamed: ' + final.name + ')') if final.name != path.name else ''}")
 
 
@@ -320,6 +332,35 @@ def _targets(target: str) -> list[dict]:
             return [folder_cfg]
     print(f"Unknown target '{target}'. Use: downloads, desktop, or all.")
     sys.exit(2)
+
+
+def run_repair_dates(folders: list[dict]) -> None:
+    """One-time fix: files filed by an older version (or the initial sweep) had
+    their 'Date Added' reset to the sort time, so they clump under 'Today' in
+    Finder. Reset each filed file's Date Added to its true creation time. Only
+    touches our own managed category folders — never the user's other folders."""
+    fixed = 0
+    checked = 0
+    for folder_cfg in folders:
+        root = folder_cfg["path"]
+        for top in config.MANAGED_TOP_LEVEL:
+            base = root / top
+            if not base.exists():
+                continue
+            for p in base.rglob("*"):
+                if not p.is_file() or p.name.startswith("."):
+                    continue
+                # Don't descend into bundles (.app etc.) — treat them as units.
+                if any(parent.suffix.lower() in config.BUNDLE_EXTENSIONS
+                       for parent in p.parents):
+                    continue
+                checked += 1
+                st = p.stat()
+                real = getattr(st, "st_birthtime", None) or st.st_mtime
+                if macos_meta.set_date_added(p, real):
+                    fixed += 1
+        print(f"[{root.name}] repaired Date Added on filed files.")
+    print(f"Done: set Date Added on {fixed}/{checked} files to their real creation date.")
 
 
 # ---------------------------------------------------------------------------
@@ -410,6 +451,7 @@ def main() -> None:
     parser.add_argument("--cleanup", action="store_true", help="Find old/junk files (report only unless --apply).")
     parser.add_argument("--empty-reviewed", action="store_true", help="Send aged _ToReview items to Trash (with --apply).")
     parser.add_argument("--restore", action="store_true", help="Move _ToReview items back to their folder.")
+    parser.add_argument("--repair-dates", action="store_true", help="Reset filed files' Date Added to their real creation date (one-time fix).")
     parser.add_argument("--apply", action="store_true", help="Actually perform cleanup actions (default is preview).")
     parser.add_argument("--target", default="all", help="downloads | desktop | all (default: all).")
     args = parser.parse_args()
@@ -427,6 +469,9 @@ def main() -> None:
         return
     if args.restore:
         cleanup.run_restore(_targets(args.target), log=log)
+        return
+    if args.repair_dates:
+        run_repair_dates(_targets(args.target))
         return
     if args.sweep:
         run_sweep(args.target, dry_run=args.dry_run)

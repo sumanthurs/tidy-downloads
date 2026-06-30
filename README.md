@@ -162,6 +162,24 @@ recently) are protected and won't be picked. Want a file back?
 
 ---
 
+## Dates stay correct ("Date Added")
+
+When a file is filed into a folder, this tool **preserves its original "Date
+Added"** so it doesn't suddenly look like it arrived today. Your folders sort
+by real date in Finder, just like before.
+
+If you organized files with an older version (or your first big sweep) and they
+all show under **Today**, fix them once with:
+
+```bash
+tidy --repair-dates
+```
+
+This resets each filed file's "Date Added" to its true creation date. It only
+touches the tool's own category folders, never your other folders.
+
+---
+
 ## Check that it's running
 
 ```bash
