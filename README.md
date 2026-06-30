@@ -162,6 +162,25 @@ recently) are protected and won't be picked. Want a file back?
 
 ---
 
+## How files are organized by date
+
+- **Screenshots & Photos** go into **month folders** by their real date —
+  `Images/Photos/2025-10/`, `Images/Screenshots/2026-06/`. You have lots of
+  these and usually look for them by *when*, so date folders help.
+- **Everything else** (documents, videos, audio, archives, installers) stays
+  **flat** in its category folder — you find these by name. To browse them by
+  date, set the Finder window to **Sort By → Date Created**.
+
+To bucket more types by month, add their group to `DATE_BUCKET_GROUPS` in
+`config.py` (e.g. `{"Images", "Archives"}`). To reorganize already-filed files
+after changing it:
+
+```bash
+tidy --rebucket
+```
+
+---
+
 ## Dates stay correct ("Date Added")
 
 When a file is filed into a folder, this tool **preserves its original "Date

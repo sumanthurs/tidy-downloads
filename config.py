@@ -85,6 +85,12 @@ CATEGORIES: dict[str, dict[str, str]] = {
     "Misc":           {"path": "Misc",                           "group": "Misc"},
 }
 
+# Which category GROUPS get date (month/week) sub-folders. Images are
+# high-volume and naturally browsed by date, so they get month folders;
+# documents/media/etc. stay flat (found by name, sorted by Date Created).
+# Add a group here (e.g. "Archives") to also bucket it by date.
+DATE_BUCKET_GROUPS: set[str] = {"Images"}
+
 # Top-level folder names we create. The watcher ignores these so it never
 # reacts to its own moves.
 MANAGED_TOP_LEVEL: set[str] = {
@@ -112,7 +118,7 @@ WATCHED_DIRS: list[dict] = [
         # "download then immediately attach it somewhere" flow still finds it
         # loose in Downloads. After that it's filed automatically.
         "move_delay": {"mode": "grace", "minutes": 20},
-        "date_buckets": "none",
+        "date_buckets": "monthly",          # only DATE_BUCKET_GROUPS (Images) actually bucket
         "categories": None,                 # organize all file types
         "ignore_recent_hours": 0,
     },

@@ -185,10 +185,14 @@ def passes_move_delay(path: Path, folder_cfg: dict, force: bool) -> bool:
 def destination_dir(watched_root: Path, key: str, path: Path, folder_cfg: dict) -> Path:
     base = watched_root / config.CATEGORIES[key]["path"]
     buckets = folder_cfg.get("date_buckets", "none")
-    if buckets == "monthly":
-        base = base / created_time(path).strftime("%Y-%m")
-    elif buckets == "weekly":
-        base = base / created_time(path).strftime("%Y-W%V")
+    group = config.CATEGORIES[key]["group"]
+    # Only the configured groups (e.g. Images) get month/week sub-folders;
+    # everything else stays flat in its category folder.
+    if buckets != "none" and group in config.DATE_BUCKET_GROUPS:
+        if buckets == "monthly":
+            base = base / created_time(path).strftime("%Y-%m")
+        elif buckets == "weekly":
+            base = base / created_time(path).strftime("%Y-W%V")
     return base
 
 
@@ -383,6 +387,78 @@ def run_repair_dates(folders: list[dict]) -> None:
     print(f"Done: fixed {files_fixed} files and {dirs_fixed} folders.")
 
 
+def _iter_managed_items(leaf: Path):
+    """Yield files and bundle directories under a category leaf, without
+    descending into bundles."""
+    for dirpath, dirnames, filenames in os.walk(leaf):
+        dp = Path(dirpath)
+        bundles = [d for d in dirnames if (dp / d).suffix.lower() in config.BUNDLE_EXTENSIONS]
+        dirnames[:] = [d for d in dirnames if d not in bundles]
+        for d in bundles:
+            yield dp / d
+        for f in filenames:
+            if not f.startswith("."):
+                yield dp / f
+
+
+def _remove_empty_dirs(root: Path) -> None:
+    """Remove now-empty sub-folders under our managed folders (e.g. month
+    folders emptied by flattening). Leaves the top-level managed folders."""
+    for top in config.MANAGED_TOP_LEVEL:
+        base = root / top
+        if not base.exists():
+            continue
+        for dirpath, _dirnames, _filenames in os.walk(base, topdown=False):
+            dp = Path(dirpath)
+            if dp == base or dp.suffix.lower() in config.BUNDLE_EXTENSIONS:
+                continue
+            try:
+                remaining = [x for x in dp.iterdir() if x.name != ".DS_Store"]
+                if not remaining:
+                    for junk in dp.iterdir():
+                        junk.unlink()
+                    dp.rmdir()
+            except OSError:
+                pass
+
+
+def run_rebucket(folders: list[dict]) -> None:
+    """Reorganize already-filed files so the on-disk layout matches the current
+    bucketing config: groups in DATE_BUCKET_GROUPS get month/week folders,
+    everything else is flattened back into its category folder. Idempotent."""
+    import shutil
+    moved = 0
+    for folder_cfg in folders:
+        root = folder_cfg["path"]
+        buckets = folder_cfg.get("date_buckets", "none")
+        for rel in sorted({c["path"] for c in config.CATEGORIES.values()}):
+            leaf = root / rel
+            if not leaf.exists():
+                continue
+            group = next(c["group"] for c in config.CATEGORIES.values() if c["path"] == rel)
+            should_bucket = buckets != "none" and group in config.DATE_BUCKET_GROUPS
+            for item in list(_iter_managed_items(leaf)):
+                if should_bucket:
+                    ct = created_time(item)
+                    name = ct.strftime("%Y-%m") if buckets == "monthly" else ct.strftime("%Y-W%V")
+                    desired = leaf / name
+                else:
+                    desired = leaf
+                if item.parent == desired:
+                    continue
+                original_added = macos_meta.get_date_added(item)
+                desired.mkdir(parents=True, exist_ok=True)
+                final = unique_destination(desired, item.name)
+                shutil.move(str(item), str(final))
+                if original_added:
+                    macos_meta.set_date_added(final, original_added)
+                moved += 1
+        _remove_empty_dirs(root)
+        print(f"[{root.name}] reorganized to match the month-folder scheme.")
+    print(f"Done: moved {moved} item(s).")
+    run_repair_dates(folders)  # fix Date Added on files + the month folders
+
+
 # ---------------------------------------------------------------------------
 # Single-instance lock
 # ---------------------------------------------------------------------------
@@ -472,6 +548,7 @@ def main() -> None:
     parser.add_argument("--empty-reviewed", action="store_true", help="Send aged _ToReview items to Trash (with --apply).")
     parser.add_argument("--restore", action="store_true", help="Move _ToReview items back to their folder.")
     parser.add_argument("--repair-dates", action="store_true", help="Reset filed files' Date Added to their real creation date (one-time fix).")
+    parser.add_argument("--rebucket", action="store_true", help="Reorganize filed files to match the month-folder scheme (Images bucketed, rest flat).")
     parser.add_argument("--apply", action="store_true", help="Actually perform cleanup actions (default is preview).")
     parser.add_argument("--target", default="all", help="downloads | desktop | all (default: all).")
     args = parser.parse_args()
@@ -492,6 +569,9 @@ def main() -> None:
         return
     if args.repair_dates:
         run_repair_dates(_targets(args.target))
+        return
+    if args.rebucket:
+        run_rebucket(_targets(args.target))
         return
     if args.sweep:
         run_sweep(args.target, dry_run=args.dry_run)
