@@ -216,7 +216,12 @@ class Worker:
         watched_root = folder_cfg["path"]
         if not should_process(path, watched_root):
             return
-        if not wait_until_stable(path):
+        if force:
+            # Sweep mode: existing files are already complete, so skip the
+            # (slow) download-stability wait — just ignore in-progress temps.
+            if path.suffix.lower() in config.TEMP_EXTENSIONS or not path.exists():
+                return
+        elif not wait_until_stable(path):
             return
         if not path.exists():
             return
