@@ -19,17 +19,39 @@ SHORTCUT="$BIN_DIR/tidy"
 
 echo "==> Tidy Downloads installer"
 
-# 1) Pick a Python 3 to *build* the venv (any modern python3 works here).
-PYBOOT="$(command -v python3 || true)"
+# 1) Pick a Python 3 to *build* the venv.
+#
+# IMPORTANT (macOS): macOS Full Disk Access cannot be granted to a symlinked
+# interpreter, and Apple's built-in /usr/bin/python3 can ONLY create
+# symlinked venvs ("cannot create venvs without using symlinks"). So we prefer
+# a Homebrew Python, which lets us build the venv with --copies — giving the
+# agent its own REAL binary that you can actually select in the Full Disk
+# Access picker. If no Homebrew Python is found we fall back to the system one
+# (you'll then have to grant access to the resolved framework binary).
+COPIES_FLAG="--copies"
+PYBOOT=""
+for cand in /opt/homebrew/bin/python3.11 /opt/homebrew/bin/python3.12 \
+            /opt/homebrew/bin/python3 /usr/local/bin/python3; do
+    if [[ -x "$cand" ]]; then PYBOOT="$cand"; break; fi
+done
 if [[ -z "$PYBOOT" ]]; then
-    echo "ERROR: python3 not found. Install it (e.g. 'brew install python') and re-run." >&2
+    echo "    No Homebrew Python found. Falling back to the system python3."
+    echo "    TIP: 'brew install python' gives a cleaner setup (selectable in"
+    echo "         Full Disk Access). Continuing with the system Python..."
+    PYBOOT="$(command -v python3 || true)"
+    COPIES_FLAG=""   # Apple's python can't do --copies
+fi
+if [[ -z "$PYBOOT" ]]; then
+    echo "ERROR: no python3 found. Install it (e.g. 'brew install python') and re-run." >&2
     exit 1
 fi
+echo "==> Using base Python: $PYBOOT"
 
 # 2) Create the private virtual environment and install dependencies.
 echo "==> Creating virtual environment at $VENV"
 mkdir -p "$APP_DIR"
-"$PYBOOT" -m venv "$VENV"
+rm -rf "$VENV"
+"$PYBOOT" -m venv $COPIES_FLAG "$VENV"
 "$VENV/bin/python" -m pip install --upgrade pip >/dev/null
 echo "==> Installing dependencies (this can take a minute)..."
 "$VENV/bin/python" -m pip install -r "$SCRIPT_DIR/requirements.txt"

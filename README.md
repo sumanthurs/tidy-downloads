@@ -72,13 +72,22 @@ cd tidy-downloads
 ./install_launch_agent.sh
 ```
 
-Then **grant permission** so macOS lets it read your files:
+Then **grant permission** so macOS lets it read your files. Open
+**System Settings → Privacy & Security → Full Disk Access**, then:
 
-> System Settings → Privacy & Security → **Full Disk Access** → turn it on for
-> the Python the installer prints (it lives at
-> `~/.tidy-downloads/venv/bin/python`).
+1. Click the **`+`** button (authenticate if asked).
+2. In the file picker, press **`Cmd`+`Shift`+`G`**, paste this, and press Enter:
+   ```
+   ~/.tidy-downloads/venv/bin/
+   ```
+3. Select **`python`** and click **Open**, then make sure its toggle is **ON**.
 
-Without this, macOS may silently block the tool and nothing will happen.
+Without this, macOS silently blocks the tool and nothing happens.
+
+> **Note:** this requires a **Homebrew** Python (`brew install python`). The
+> installer uses it to build the tool's own *real* Python binary — Apple's
+> built-in Python only produces symlinks, which macOS won't let you select in
+> the Full Disk Access picker.
 
 That's it — it now starts automatically every time you log in.
 
