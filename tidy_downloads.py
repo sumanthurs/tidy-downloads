@@ -339,28 +339,48 @@ def run_repair_dates(folders: list[dict]) -> None:
     their 'Date Added' reset to the sort time, so they clump under 'Today' in
     Finder. Reset each filed file's Date Added to its true creation time. Only
     touches our own managed category folders — never the user's other folders."""
-    fixed = 0
-    checked = 0
+    files_fixed = 0
+    dirs_fixed = 0
     for folder_cfg in folders:
         root = folder_cfg["path"]
         for top in config.MANAGED_TOP_LEVEL:
             base = root / top
             if not base.exists():
                 continue
-            for p in base.rglob("*"):
-                if not p.is_file() or p.name.startswith("."):
+            # Walk bottom-up so each folder's "Date Added" can be set to the
+            # newest of its contents. Folders we create during sorting are born
+            # "today", so without this a 2025-08 bucket shows under Today.
+            for dirpath, dirnames, filenames in os.walk(base, topdown=False):
+                dp = Path(dirpath)
+                if (dp.suffix.lower() in config.BUNDLE_EXTENSIONS or
+                        any(par.suffix.lower() in config.BUNDLE_EXTENSIONS for par in dp.parents)):
                     continue
-                # Don't descend into bundles (.app etc.) — treat them as units.
-                if any(parent.suffix.lower() in config.BUNDLE_EXTENSIONS
-                       for parent in p.parents):
-                    continue
-                checked += 1
-                st = p.stat()
-                real = getattr(st, "st_birthtime", None) or st.st_mtime
-                if macos_meta.set_date_added(p, real):
-                    fixed += 1
-        print(f"[{root.name}] repaired Date Added on filed files.")
-    print(f"Done: set Date Added on {fixed}/{checked} files to their real creation date.")
+                newest = 0.0
+                for fn in filenames:
+                    if fn.startswith("."):
+                        continue
+                    p = dp / fn
+                    try:
+                        st = p.stat()
+                    except OSError:
+                        continue
+                    real = getattr(st, "st_birthtime", None) or st.st_mtime
+                    if macos_meta.set_date_added(p, real):
+                        files_fixed += 1
+                    newest = max(newest, real)
+                for dn in dirnames:
+                    da = macos_meta.get_date_added(dp / dn)
+                    if not da:
+                        try:
+                            st = (dp / dn).stat()
+                            da = getattr(st, "st_birthtime", None) or st.st_mtime
+                        except OSError:
+                            da = 0
+                    newest = max(newest, da or 0)
+                if newest > 0 and macos_meta.set_date_added(dp, newest):
+                    dirs_fixed += 1
+        print(f"[{root.name}] repaired Date Added.")
+    print(f"Done: fixed {files_fixed} files and {dirs_fixed} folders.")
 
 
 # ---------------------------------------------------------------------------
