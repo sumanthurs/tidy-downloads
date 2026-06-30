@@ -44,7 +44,7 @@ VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
 AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".flac", ".aac"}
 INSTALLER_EXTS = {".dmg", ".pkg", ".app"}
 ARCHIVE_EXTS = {".zip", ".rar", ".7z", ".tar", ".gz", ".tgz"}
-IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".heic"}
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".heic", ".webp", ".gif", ".bmp", ".tiff", ".tif"}
 
 # Common screen resolutions — a weak, last-resort hint that an image with no
 # camera data is a screenshot. (width, height); reversed pairs are also checked.

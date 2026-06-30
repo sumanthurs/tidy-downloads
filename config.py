@@ -120,7 +120,7 @@ WATCHED_DIRS: list[dict] = [
         "path": HOME / "Desktop",
         "move_delay": {"mode": "grace", "hours": DESKTOP_GRACE_HOURS},
         "date_buckets": "monthly",          # Screenshots/2026-06/, Images/2026-06/
-        "categories": ["Screenshots", "Images"],   # leave parked documents alone
+        "categories": None,                 # organize all file types (folders never moved)
         "ignore_recent_hours": 0,
     },
 ]
