@@ -85,11 +85,11 @@ CATEGORIES: dict[str, dict[str, str]] = {
     "Misc":           {"path": "Misc",                           "group": "Misc"},
 }
 
-# Which category GROUPS get date (month/week) sub-folders. Images are
-# high-volume and naturally browsed by date, so they get month folders;
-# documents/media/etc. stay flat (found by name, sorted by Date Created).
-# Add a group here (e.g. "Archives") to also bucket it by date.
-DATE_BUCKET_GROUPS: set[str] = {"Images"}
+# Which category GROUPS get date (month/week) sub-folders. Empty = everything
+# stays flat in its category folder (simplest to browse and bulk-delete; find
+# files by name, sort the window by Date Created for date order). To bucket a
+# group by month, add it here, e.g. {"Images"}, then run `tidy --rebucket`.
+DATE_BUCKET_GROUPS: set[str] = set()
 
 # Top-level folder names we create. The watcher ignores these so it never
 # reacts to its own moves.

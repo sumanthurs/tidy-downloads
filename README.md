@@ -164,20 +164,15 @@ recently) are protected and won't be picked. Want a file back?
 
 ## How files are organized by date
 
-- **Screenshots & Photos** go into **month folders** by their real date —
-  `Images/Photos/2025-10/`, `Images/Screenshots/2026-06/`. You have lots of
-  these and usually look for them by *when*, so date folders help.
-- **Everything else** (documents, videos, audio, archives, installers) stays
-  **flat** in its category folder — you find these by name. To browse them by
-  date, set the Finder window to **Sort By → Date Created**.
+Files sit **flat** inside their category folder (e.g. all photos in
+`Images/Photos/`) — simplest to browse and to bulk-delete. To see them in date
+order, set the Finder window to **Sort By → Date Created** (the tool preserves
+each file's real date, so this is always accurate).
 
-To bucket more types by month, add their group to `DATE_BUCKET_GROUPS` in
-`config.py` (e.g. `{"Images", "Archives"}`). To reorganize already-filed files
-after changing it:
-
-```bash
-tidy --rebucket
-```
+Prefer month folders for some types (e.g. screenshots)? Add the group to
+`DATE_BUCKET_GROUPS` in `config.py` (e.g. `{"Images"}`), then run
+`tidy --rebucket` to reorganize. Leave it empty (the default) to keep
+everything flat.
 
 ---
 
