@@ -81,7 +81,7 @@ CATEGORIES: dict[str, dict[str, str]] = {
     "Videos":         {"path": "Videos",                         "group": "Videos"},
     "Audio":          {"path": "Audio",                          "group": "Audio"},
     "Installers":     {"path": "Installers",                     "group": "Installers"},
-    "Archives":       {"path": "Archives",                       "group": "Archives"},
+    "Archives":       {"path": "Zip",                            "group": "Archives"},
     "Misc":           {"path": "Misc",                           "group": "Misc"},
 }
 
@@ -94,7 +94,7 @@ DATE_BUCKET_GROUPS: set[str] = set()
 # Top-level folder names we create. The watcher ignores these so it never
 # reacts to its own moves.
 MANAGED_TOP_LEVEL: set[str] = {
-    "Documents", "Images", "Videos", "Audio", "Installers", "Archives", "Misc",
+    "Documents", "Images", "Videos", "Audio", "Installers", "Zip", "Misc",
     REVIEW_FOLDER_NAME,
 }
 
