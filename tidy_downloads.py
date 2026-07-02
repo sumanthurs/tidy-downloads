@@ -304,7 +304,14 @@ def periodic_rescan(worker: "Worker", stop_event: threading.Event) -> None:
     live watcher missed."""
     while not stop_event.wait(config.RESCAN_INTERVAL_SECONDS):
         for folder_cfg in config.WATCHED_DIRS:
-            sweep_folder(worker, folder_cfg, force=False)
+            # Never let a transient filesystem hiccup (e.g. an EINTR-interrupted
+            # syscall, or a folder briefly unavailable) kill this thread — if it
+            # dies, launchd won't restart the still-alive process and sweeping
+            # silently stops. Log and carry on to the next interval instead.
+            try:
+                sweep_folder(worker, folder_cfg, force=False)
+            except Exception as exc:  # noqa: BLE001 - resilience is the whole point
+                log("ERROR", folder_cfg["path"].name, f"rescan failed: {exc!r}")
 
 
 # ---------------------------------------------------------------------------

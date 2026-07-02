@@ -169,6 +169,7 @@ def _extract_pdf_text(path: Path, max_pages: int = 2) -> str:
     """Extract text from the first `max_pages` pages. Returns '' when the PDF
     has no extractable text (scanned/encrypted) — that is not an error."""
     import pdfplumber
+    from pdfminer.pdfdocument import PDFPasswordIncorrect, PDFEncryptionError
 
     try:
         parts: list[str] = []
@@ -176,7 +177,18 @@ def _extract_pdf_text(path: Path, max_pages: int = 2) -> str:
             for page in pdf.pages[:max_pages]:
                 parts.append(page.extract_text() or "")
         return "\n".join(parts)
-    except Exception as exc:  # genuinely unreadable
+    except Exception as exc:
+        # Password-protected PDFs (e.g. bank/card statements) have no
+        # extractable text without the password. pdfplumber re-wraps
+        # pdfminer's error as a PdfminerException with an empty message, so
+        # unwrap to check the cause. Treat as "no text" — same as a scanned
+        # PDF — so the file is still filed (by name/default) instead of being
+        # logged as an error and retried on every rescan forever.
+        cause = exc.__context__ or (exc.args[0] if exc.args else None)
+        if isinstance(exc, (PDFPasswordIncorrect, PDFEncryptionError)) or isinstance(
+            cause, (PDFPasswordIncorrect, PDFEncryptionError)
+        ):
+            return ""
         raise ContentReadError(f"Could not read PDF content: {exc}") from exc
 
 
